@@ -13,14 +13,12 @@ ext {
                applicationId             : "com.didichuxing.doraemondemo",
                minSdkVersion             : 16,
                targetSdkVersion          : 27,
-               versionCode               : 210,
-               //滴滴内网dokit版本号
-               innerArchivesVersionName  : "0.2.0",
+               versionCode               : 221,
                //dokit 插件版本号
-               pluginVersionName         : "0.1.0",
+               pluginVersionName         : "1.0.0",
                //jcenter dokit版本号
-               jcenterArchivesVersionName: "1.2.7",
-               versionName               : "2.1.0",
+               jcenterArchivesVersionName: "2.2.1",
+               versionName               : "2.2.1",
                glide                     : "4.8.0",
     ]
     dependencies = [// ###### android library  start ######
@@ -75,8 +73,9 @@ ext {
                     "didi_http"               : 'com.didichuxing.foundation:http:2.1.0.74',
                     "didi_rpc"                : 'com.didichuxing.foundation:rpc:2.1.0.74',
                     "okgo"                    : "com.lzy.net:okgo:3.0.4",
-                    //高德定位
+                    //高德地图定位
                     "amap_location"           : 'com.amap.api:location:latest.integration',
+                    //腾讯地图定位
                     "tencent_location"        : 'com.tencent.map.geolocation:TencentLocationSdk-openplatform:7.2.4',
                     "easypermissions"         : "pub.devrel:easypermissions:2.0.1"
 

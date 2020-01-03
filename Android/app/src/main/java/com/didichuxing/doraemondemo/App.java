@@ -3,6 +3,7 @@ package com.didichuxing.doraemondemo;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
+import android.os.StrictMode;
 import android.support.multidex.MultiDex;
 
 import com.didichuxing.doraemondemo.dokit.DemoKit;
@@ -27,7 +28,9 @@ public class App extends Application {
         super.onCreate();
         List<IKit> kits = new ArrayList<>();
         kits.add(new DemoKit());
-        DoraemonKit.install(this, kits, "0f2e4fc5540392a7083d61c921198c78");
+        DoraemonKit.install(this, kits);
+        //是否显示入口icon
+        //DoraemonKit.setAwaysShowMianIcon(false);
         Fresco.initialize(this);
         DoraemonKit.setWebDoorCallback(new WebDoorManager.WebDoorCallback() {
             @Override
@@ -39,25 +42,10 @@ public class App extends Application {
             }
         });
         //严格检查模式
-        //StrictMode.enableDefaults();
-//        try {
-//            test1();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//        StackTraceElement[] stack = new Throwable().getStackTrace();
-//        for (StackTraceElement stackTraceElement : stack) {
-//            Log.d(TAG, "----> " + stackTraceElement.toString());
-//
-//        }
-
+        StrictMode.enableDefaults();
 
     }
 
-
-    private void test1() {
-        throw new NullPointerException("空指针异常");
-    }
 
     @Override
     protected void attachBaseContext(Context base) {

@@ -8,7 +8,6 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
-import android.util.SparseArray;
 import android.widget.Toast;
 
 import com.amitshekhar.DebugDB;
@@ -20,6 +19,7 @@ import com.blankj.utilcode.util.NetworkUtils;
 import com.blankj.utilcode.util.ToastUtils;
 import com.blankj.utilcode.util.Utils;
 import com.didichuxing.doraemonkit.aop.OkHttpHook;
+import com.didichuxing.doraemonkit.constant.DokitConstant;
 import com.didichuxing.doraemonkit.config.PerformanceSpInfoConfig;
 import com.didichuxing.doraemonkit.constant.SharedPrefsKey;
 import com.didichuxing.doraemonkit.kit.Category;
@@ -41,7 +41,6 @@ import com.didichuxing.doraemonkit.kit.layoutborder.LayoutBorderKit;
 import com.didichuxing.doraemonkit.kit.logInfo.LogInfoKit;
 import com.didichuxing.doraemonkit.kit.methodtrace.MethodCostKit;
 import com.didichuxing.doraemonkit.kit.mode.FloatModeKit;
-import com.didichuxing.doraemonkit.kit.network.MockKit;
 import com.didichuxing.doraemonkit.kit.network.NetworkKit;
 import com.didichuxing.doraemonkit.kit.network.NetworkManager;
 import com.didichuxing.doraemonkit.kit.parameter.cpu.CpuKit;
@@ -61,7 +60,6 @@ import com.didichuxing.doraemonkit.ui.UniversalActivity;
 import com.didichuxing.doraemonkit.ui.base.AbsDokitView;
 import com.didichuxing.doraemonkit.ui.base.DokitIntent;
 import com.didichuxing.doraemonkit.ui.base.DokitViewManager;
-import com.didichuxing.doraemonkit.ui.kit.KitItem;
 import com.didichuxing.doraemonkit.ui.main.FloatIconDokitView;
 import com.didichuxing.doraemonkit.ui.main.ToolPanelDokitView;
 import com.didichuxing.doraemonkit.util.DoraemonStatisticsUtil;
@@ -81,35 +79,23 @@ import java.util.Map;
  * Created by jintai on 2019/12/18.
  * DoraemonKit 真正执行的类  不建议外部app调用
  */
-
-public class DoraemonKitReal {
+class DoraemonKitReal {
     private static final String TAG = "DoraemonKitReal";
 
-    private static SparseArray<List<IKit>> sKitMap = new SparseArray<>();
 
     private static boolean sHasRequestPermission;
 
     private static boolean sHasInit = false;
-    /**
-     * 用来判断系统悬浮窗的入口浮标是否显示
-     */
-    private static boolean mSystemDokitViewIcon = true;
+
     /**
      * 是否允许上传统计信息
      */
     private static boolean sEnableUpload = true;
-    /**
-     * 是否是普通的浮标模式
-     */
-    public static boolean IS_NORMAL_FLOAT_MODE = true;
-
-    public static Application APPLICATION;
-    public static String PRODUCT_ID = "";
-
+    private static Application APPLICATION;
     private static DbDebugFragment mDbDebugFragment;
 
     /**
-     * 用来判断是否接入了dokit插件
+     * 用来判断是否接入了dokit插件 如果安装了插件会动态修改这个值为true
      */
     private static boolean IS_HOOK = false;
     /**
@@ -141,16 +127,16 @@ public class DoraemonKitReal {
         }
     };
 
-    public static void setDebug(boolean debug) {
+    static void setDebug(boolean debug) {
         LogHelper.setDebug(debug);
     }
 
 
-    public static void install(Application app) {
+    static void install(Application app) {
         install(app, null);
     }
 
-    public static void install(Application app, List<IKit> selfKits) {
+    static void install(Application app, List<IKit> selfKits) {
         install(app, selfKits, "");
     }
 
@@ -159,13 +145,13 @@ public class DoraemonKitReal {
      * @param selfKits  自定义kits
      * @param productId Dokit平台端申请的productId
      */
-    public static void install(final Application app, List<IKit> selfKits, String productId) {
-        PRODUCT_ID = productId;
+    static void install(final Application app, List<IKit> selfKits, String productId) {
+        DokitConstant.PRODUCT_ID = productId;
         //添加常用工具
         if (sHasInit) {
             //已经初始化添加自定义kits
             if (selfKits != null) {
-                List<IKit> biz = sKitMap.get(Category.BIZ);
+                List<IKit> biz = DokitConstant.KIT_MAPS.get(Category.BIZ);
                 if (biz != null) {
                     biz.clear();
                     biz.addAll(selfKits);
@@ -182,9 +168,9 @@ public class DoraemonKitReal {
         APPLICATION = app;
         String strfloatMode = SharedPrefsUtil.getString(app, SharedPrefsKey.FLOAT_START_MODE, "normal");
         if (strfloatMode.equals("normal")) {
-            IS_NORMAL_FLOAT_MODE = true;
+            DokitConstant.IS_NORMAL_FLOAT_MODE = true;
         } else {
-            IS_NORMAL_FLOAT_MODE = false;
+            DokitConstant.IS_NORMAL_FLOAT_MODE = false;
         }
 
         //解锁系统隐藏api限制权限以及hook Instrumentation
@@ -233,10 +219,6 @@ public class DoraemonKitReal {
                 if (ignoreCurrentActivityDokitView(activity)) {
                     return;
                 }
-                //用户主动调用hide 以后 不再显示浮标 除非手动打开
-                if (!IS_SHOW_KIT) {
-                    return;
-                }
 
                 //设置app的直接子view的Id
                 if (UIUtils.getDokitAppContentView(activity) != null) {
@@ -244,14 +226,14 @@ public class DoraemonKitReal {
                 }
 
 
-                if (IS_NORMAL_FLOAT_MODE) {
+                if (DokitConstant.IS_NORMAL_FLOAT_MODE) {
                     //显示内置dokitView icon
                     resumeAndAttachDokitViews(activity);
                 } else {
                     //悬浮窗权限 vivo 华为可以不需要动态权限 小米需要
                     if (PermissionUtil.canDrawOverlays(activity)) {
                         //系统悬浮窗需要判断浮标是否已经显示
-                        if (mSystemDokitViewIcon) {
+                        if (!DokitConstant.MAIN_ICON_HAS_SHOW) {
                             showSystemMainIcon();
                         }
                         systemDokitViewOnResume(activity);
@@ -310,17 +292,10 @@ public class DoraemonKitReal {
                 DokitViewManager.getInstance().onActivityDestroy(activity);
             }
         });
-        sKitMap.clear();
-        boolean hasAopMoudle = false;
-        try {
-            Class.forName("parking.didi.com.aop.DoraemonHooker").newInstance();
-            hasAopMoudle = true;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        DokitConstant.KIT_MAPS.clear();
+
         //两个条件只要满足一个就可以
-        if (hasAopMoudle || IS_HOOK) {
-            hasAopMoudle = true;
+        if (IS_HOOK) {
 
         }
 
@@ -353,7 +328,7 @@ public class DoraemonKitReal {
         tool.add(new CrashCaptureKit());
         tool.add(new LogInfoKit());
         tool.add(new DataCleanKit());
-        if (hasAopMoudle) {
+        if (IS_HOOK) {
             tool.add(new WeakNetworkKit());
         }
         tool.add(new DbDebugKit());
@@ -362,14 +337,14 @@ public class DoraemonKitReal {
         performance.add(new FrameInfoKit());
         performance.add(new CpuKit());
         performance.add(new RamKit());
-        if (hasAopMoudle) {
+        if (IS_HOOK) {
             performance.add(new NetworkKit());
         }
         performance.add(new BlockMonitorKit());
         performance.add(new TimeCounterKit());
         performance.add(new MethodCostKit());
         performance.add(new UIPerformanceKit());
-        if (hasAopMoudle) {
+        if (IS_HOOK) {
             performance.add(new LargePictureKit());
         }
 
@@ -395,9 +370,9 @@ public class DoraemonKitReal {
         ui.add(new AlignRulerKit());
         ui.add(new ViewCheckerKit());
         ui.add(new LayoutBorderKit());
-        if (hasAopMoudle) {
-            //新增数据mock工具
-            platform.add(new MockKit());
+        if (IS_HOOK) {
+            //新增数据mock工具 由于Dokit管理平台还没完善 所以暂时关闭入口
+            //platform.add(new MockKit());
         }
 
         //增加浮标模式
@@ -424,7 +399,7 @@ public class DoraemonKitReal {
             kit.onAppInit(app);
         }
         //注入到sKitMap中
-        sKitMap.put(Category.BIZ, biz);
+        DokitConstant.KIT_MAPS.put(Category.BIZ, biz);
         //动态添加weex专区
         try {
             IKit weexLogKit = (IKit) Class.forName("com.didichuxing.doraemonkit.weex.log.WeexLogKit").newInstance();
@@ -435,7 +410,7 @@ public class DoraemonKitReal {
             weex.add(weexInfoKit);
             IKit devToolKit = (IKit) Class.forName("com.didichuxing.doraemonkit.weex.devtool.DevToolKit").newInstance();
             weex.add(devToolKit);
-            sKitMap.put(Category.WEEX, weex);
+            DokitConstant.KIT_MAPS.put(Category.WEEX, weex);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
@@ -444,13 +419,13 @@ public class DoraemonKitReal {
             e.printStackTrace();
         }
 
-        sKitMap.put(Category.PERFORMANCE, performance);
-        sKitMap.put(Category.PLATFORM, platform);
-        sKitMap.put(Category.TOOLS, tool);
-        sKitMap.put(Category.UI, ui);
-        sKitMap.put(Category.FLOAT_MODE, floatMode);
-        sKitMap.put(Category.CLOSE, exit);
-        sKitMap.put(Category.VERSION, version);
+        DokitConstant.KIT_MAPS.put(Category.PERFORMANCE, performance);
+        DokitConstant.KIT_MAPS.put(Category.PLATFORM, platform);
+        DokitConstant.KIT_MAPS.put(Category.TOOLS, tool);
+        DokitConstant.KIT_MAPS.put(Category.UI, ui);
+        DokitConstant.KIT_MAPS.put(Category.FLOAT_MODE, floatMode);
+        DokitConstant.KIT_MAPS.put(Category.CLOSE, exit);
+        DokitConstant.KIT_MAPS.put(Category.VERSION, version);
         //初始化悬浮窗管理类
         DokitViewManager.getInstance().init(app);
         //上传app基本信息便于统计
@@ -463,15 +438,8 @@ public class DoraemonKitReal {
         registerNetworkStatusChangedListener();
     }
 
-    /**
-     * 全局注入
-     */
-    private static void aopHook() {
-        //OkHttp hook
-        OkHttpHook.installInterceptor();
-    }
 
-    public static void setWebDoorCallback(WebDoorManager.WebDoorCallback callback) {
+    static void setWebDoorCallback(WebDoorManager.WebDoorCallback callback) {
         WebDoorManager.getInstance().setWebDoorCallback(callback);
     }
 
@@ -483,23 +451,31 @@ public class DoraemonKitReal {
             @Override
             public void onDisconnected() {
                 ToastUtils.showShort("当前网络已断开");
-                DebugDB.shutDown();
-                if (mDbDebugFragment != null) {
-                    mDbDebugFragment.networkChanged(NetworkUtils.NetworkType.NETWORK_NO);
+                try {
+                    DebugDB.shutDown();
+                    if (mDbDebugFragment != null) {
+                        mDbDebugFragment.networkChanged(NetworkUtils.NetworkType.NETWORK_NO);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-
             }
 
             @Override
             public void onConnected(NetworkUtils.NetworkType networkType) {
                 //重启DebugDB
                 ToastUtils.showShort("当前网络类型:" + networkType.name());
-                DebugDB.shutDown();
-                DebugDB.initialize(APPLICATION, new DebugDBFactory());
-                DebugDB.initialize(APPLICATION, new DebugDBEncryptFactory());
-                if (mDbDebugFragment != null) {
-                    mDbDebugFragment.networkChanged(networkType);
+                try {
+                    DebugDB.shutDown();
+                    DebugDB.initialize(APPLICATION, new DebugDBFactory());
+                    DebugDB.initialize(APPLICATION, new DebugDBEncryptFactory());
+                    if (mDbDebugFragment != null) {
+                        mDbDebugFragment.networkChanged(networkType);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
+
             }
         });
     }
@@ -586,9 +562,14 @@ public class DoraemonKitReal {
             return;
         }
 
+        if (!DokitConstant.AWAYS_SHOW_MAIN_ICON) {
+            return;
+        }
+
         DokitIntent intent = new DokitIntent(FloatIconDokitView.class);
         intent.mode = DokitIntent.MODE_SINGLE_INSTANCE;
         DokitViewManager.getInstance().attach(intent);
+        DokitConstant.MAIN_ICON_HAS_SHOW = true;
     }
 
     /**
@@ -625,72 +606,41 @@ public class DoraemonKitReal {
     }
 
 
-    public static List<IKit> getKitList(int catgory) {
-        if (sKitMap.get(catgory) != null) {
-            return new ArrayList<>(sKitMap.get(catgory));
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * 将指定类目的kits转为指定的KitItems
-     *
-     * @param catgory
-     * @return
-     */
-    public static List<KitItem> getKitItems(int catgory) {
-        if (sKitMap.get(catgory) != null) {
-            List<KitItem> kitItems = new ArrayList<>();
-            for (IKit kit : sKitMap.get(catgory)) {
-                kitItems.add(new KitItem(kit));
-            }
-            return kitItems;
-        } else {
-            return null;
-        }
-    }
-
-
-    public static void show() {
+    static void show() {
+        DokitConstant.AWAYS_SHOW_MAIN_ICON = true;
         if (!isShow()) {
             showSystemMainIcon();
         }
-        mSystemDokitViewIcon = true;
-        IS_SHOW_KIT = true;
+
     }
 
 
     /**
      * 直接显示工具面板页面
      */
-    public static void showToolPanel() {
+    static void showToolPanel() {
         DokitIntent dokitViewIntent = new DokitIntent(ToolPanelDokitView.class);
         dokitViewIntent.mode = DokitIntent.MODE_SINGLE_INSTANCE;
         DokitViewManager.getInstance().attach(dokitViewIntent);
     }
 
-    /**
-     * 用户是否手动调用关闭kit
-     */
-    private static boolean IS_SHOW_KIT = true;
 
-    public static void hide() {
+    static void hide() {
+        DokitConstant.MAIN_ICON_HAS_SHOW = false;
+        DokitConstant.AWAYS_SHOW_MAIN_ICON = false;
         DokitViewManager.getInstance().detach(FloatIconDokitView.class.getSimpleName());
 
-        mSystemDokitViewIcon = false;
-        IS_SHOW_KIT = false;
     }
 
     /**
      * 禁用app信息上传开关，该上传信息只为做DoKit接入量的统计，如果用户需要保护app隐私，可调用该方法进行禁用
      */
-    public static void disableUpload() {
+    static void disableUpload() {
         sEnableUpload = false;
     }
 
-    public static boolean isShow() {
-        return mSystemDokitViewIcon;
+    static boolean isShow() {
+        return DokitConstant.MAIN_ICON_HAS_SHOW;
     }
 
 
